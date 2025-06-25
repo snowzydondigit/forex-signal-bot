@@ -21,19 +21,22 @@ def home():
 def get_signal(symbol):
     data = yf.download(symbol, period="5d", interval="1h")
 
+    if data.empty or len(data) < 21:
+        return None
+
     data["EMA9"] = data["Close"].ewm(span=9, adjust=False).mean()
     data["EMA21"] = data["Close"].ewm(span=21, adjust=False).mean()
 
     delta = data["Close"].diff()
-    gain = delta.where(delta > 0, 0)
-    loss = -delta.where(delta < 0, 0)
-    avg_gain = gain.rolling(window=14).mean()
-    avg_loss = loss.rolling(window=14).mean()
-    rs = avg_gain / avg_loss
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / loss
     data["RSI"] = 100 - (100 / (1 + rs))
 
-   rsi_value = last["RSI"].iloc[-1]
-rsi_neutral = 30 < rsi_value < 70
+    last = data.iloc[-1]
+
+    rsi_value = last["RSI"]
+    rsi_neutral = 30 < rsi_value < 70
 
     if last["EMA9"] > last["EMA21"] and rsi_neutral:
         return "BUY"
