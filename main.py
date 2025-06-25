@@ -50,11 +50,80 @@ def get_signal(symbol):
     latest_ema_200 = ema_200.iloc[-1]
 
     # Combine logic from all indicators
-   def check_signals():
-    # ... previous code
-    if latest_rsi.iloc[-1] < 30 and latest_macd.iloc[-1] > latest_signal_line.iloc[-1] and latest_ema_50.iloc[-1] > latest_ema_200.iloc[-1]:
-        # do something
-        print("Buy signal detected")
+  from flask import Flask
+from telegram import Bot
+from telegram.ext import Application, CommandHandler
+import yfinance as yf
+import pandas as pd
+import logging
+import os
+
+app = Flask(__name__)
+
+# Enable logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+
+# Replace with your actual Telegram Bot Token
+TOKEN = os.environ.get("TELEGRAM_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN_HERE")
+CHAT_ID = os.environ.get("CHAT_ID", "YOUR_CHAT_ID_HERE")
+
+bot = Bot(token=TOKEN)
+
+# Initialize application for telegram.ext
+application = Application.builder().token(TOKEN).build()
+
+def fetch_data(symbol="EURUSD=X"):
+    data = yf.download(tickers=symbol, period="5d", interval="1h")
+    return data
+
+def calculate_signal(data):
+    data['EMA5'] = data['Close'].ewm(span=5, adjust=False).mean()
+    data['EMA20'] = data['Close'].ewm(span=20, adjust=False).mean()
+    data['Signal'] = None
+
+    for i in range(1, len(data)):
+        if data['EMA5'].iloc[i] > data['EMA20'].iloc[i] and data['EMA5'].iloc[i-1] <= data['EMA20'].iloc[i-1]:
+            data['Signal'].iloc[i] = 'BUY'
+        elif data['EMA5'].iloc[i] < data['EMA20'].iloc[i] and data['EMA5'].iloc[i-1] >= data['EMA20'].iloc[i-1]:
+            data['Signal'].iloc[i] = 'SELL'
+    return data
+
+def check_signals():
+    data = fetch_data()
+    data = calculate_signal(data)
+    last_signal = data['Signal'].dropna().iloc[-1] if not data['Signal'].dropna().empty else None
+    if last_signal:
+        message = f"Latest Signal: {last_signal}"
+        bot.send_message(chat_id=CHAT_ID, text=message)
+        print(message)
+    else:
+        print("No signal found.")
+
+# Telegram command handler
+async def start(update, context):
+    await update.message.reply_text("Forex Signal Bot is running!")
+
+application.add_handler(CommandHandler("start", start))
+
+@app.route('/')
+def home():
+    return "Forex Signal Bot is up and running!"
+
+if __name__ == "__main__":
+    import threading
+
+    def run_telegram():
+        application.run_polling()
+
+    def run_flask():
+        app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+    threading.Thread(target=run_telegram).start()
+    threading.Thread(target=run_flask).start()
+
+    check_signals()
+
 
 
         return "STRONG BUY"
