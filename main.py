@@ -50,7 +50,12 @@ def get_signal(symbol):
     latest_ema_200 = ema_200.iloc[-1]
 
     # Combine logic from all indicators
-   if latest_rsi.iloc[-1] < 30 and latest_macd.iloc[-1] > latest_signal_line.iloc[-1] and latest_ema_50.iloc[-1] > latest_ema_200.iloc[-1]:
+   def check_signals():
+    # ... previous code
+    if latest_rsi.iloc[-1] < 30 and latest_macd.iloc[-1] > latest_signal_line.iloc[-1] and latest_ema_50.iloc[-1] > latest_ema_200.iloc[-1]:
+        # do something
+        print("Buy signal detected")
+
 
         return "STRONG BUY"
     elif latest_rsi > 70 and latest_macd < latest_signal_line and latest_ema_50 < latest_ema_200:
