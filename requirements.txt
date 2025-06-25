@@ -1,0 +1,4 @@
+flask
+yfinance
+pandas
+python-telegram-bot
