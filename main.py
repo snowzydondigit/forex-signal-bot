@@ -18,32 +18,49 @@ def home():
     return "Forex Signal Bot is running."
 
 # Signal generation
+import yfinance as yf
+import pandas as pd
+
 def get_signal(symbol):
+    # Download recent price data
     data = yf.download(symbol, period="5d", interval="1h")
 
-    if data.empty or len(data) < 21:
-        return None
-
-    data["EMA9"] = data["Close"].ewm(span=9, adjust=False).mean()
-    data["EMA21"] = data["Close"].ewm(span=21, adjust=False).mean()
-
+    # Calculate RSI
     delta = data["Close"].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-    rs = gain / loss
-    data["RSI"] = 100 - (100 / (1 + rs))
+    gain = delta.where(delta > 0, 0)
+    loss = -delta.where(delta < 0, 0)
+    avg_gain = gain.rolling(window=14).mean()
+    avg_loss = loss.rolling(window=14).mean()
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+    latest_rsi = rsi.iloc[-1]
 
-    last = data.iloc[-1]
+    # Calculate MACD
+    ema_12 = data['Close'].ewm(span=12, adjust=False).mean()
+    ema_26 = data['Close'].ewm(span=26, adjust=False).mean()
+    macd = ema_12 - ema_26
+    signal = macd.ewm(span=9, adjust=False).mean()
+    latest_macd = macd.iloc[-1]
+    latest_signal_line = signal.iloc[-1]
 
-    rsi_value = last["RSI"]
-    rsi_neutral = 30 < rsi_value < 70
+    # Calculate EMA 50 and EMA 200
+    ema_50 = data['Close'].ewm(span=50, adjust=False).mean()
+    ema_200 = data['Close'].ewm(span=200, adjust=False).mean()
+    latest_ema_50 = ema_50.iloc[-1]
+    latest_ema_200 = ema_200.iloc[-1]
 
-    if last["EMA9"] > last["EMA21"] and rsi_neutral:
+    # Combine logic from all indicators
+    if latest_rsi < 30 and latest_macd > latest_signal_line and latest_ema_50 > latest_ema_200:
+        return "STRONG BUY"
+    elif latest_rsi > 70 and latest_macd < latest_signal_line and latest_ema_50 < latest_ema_200:
+        return "STRONG SELL"
+    elif latest_rsi < 30:
         return "BUY"
-    elif last["EMA9"] < last["EMA21"] and rsi_neutral:
+    elif latest_rsi > 70:
         return "SELL"
     else:
-        return None
+        return "HOLD"
+
 
 # Bot loop (runs once per hour)
 def run_bot():
