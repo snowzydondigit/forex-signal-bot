@@ -32,9 +32,8 @@ def get_signal(symbol):
     rs = avg_gain / avg_loss
     data["RSI"] = 100 - (100 / (1 + rs))
 
-    last = data.iloc[-1]
-
-    rsi_neutral = (last["RSI"] > 30) and (last["RSI"] < 70)
+   rsi_value = last["RSI"].iloc[-1]
+rsi_neutral = 30 < rsi_value < 70
 
     if last["EMA9"] > last["EMA21"] and rsi_neutral:
         return "BUY"
